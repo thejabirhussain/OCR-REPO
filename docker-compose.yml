@@ -1,0 +1,113 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: arabic_ocr_postgres
+    environment:
+      POSTGRES_DB: arabic_ocr
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: arabic_ocr_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: arabic_ocr_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+      - ml_models:/models
+      - upload_files:/uploads
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/arabic_ocr
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_PATH=/models
+      - UPLOAD_DIR=/uploads
+      - OCR_ENGINE=paddleocr
+      - TRANSLATION_MODEL=facebook/nllb-200-3.3B
+      - SOURCE_LANGUAGE=ara_Arab
+      - TARGET_LANGUAGE=eng_Latn
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: arabic_ocr_worker
+    command: celery -A app.tasks worker --loglevel=info --concurrency=2
+    volumes:
+      - ./backend:/app
+      - ml_models:/models
+      - upload_files:/uploads
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/arabic_ocr
+      - REDIS_URL=redis://redis:6379/0
+      - MODEL_PATH=/models
+      - UPLOAD_DIR=/uploads
+      - OCR_ENGINE=paddleocr
+      - TRANSLATION_MODEL=facebook/nllb-200-3.3B
+      - SOURCE_LANGUAGE=ara_Arab
+      - TARGET_LANGUAGE=eng_Latn
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      backend:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: arabic_ocr_frontend
+    command: npm run dev -- --host
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  ml_models:
+  upload_files:
+
