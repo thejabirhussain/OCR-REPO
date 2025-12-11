@@ -25,12 +25,13 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = Field(
-        default="postgresql://user:password@postgres:5432/arabic_ocr",
+        # Default to local SQLite storage for simple deployments
+        default="sqlite:///./local.db",
         alias="DATABASE_URL",
     )
 
-    # Redis
-    redis_url: str = Field(default="redis://redis:6379/0", alias="REDIS_URL")
+    # Redis (optional, not used when running locally with in-memory broker)
+    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
 
     # File Upload
     max_file_size_mb: int = Field(default=50, alias="MAX_FILE_SIZE_MB")
@@ -54,9 +55,10 @@ class Settings(BaseSettings):
 
     # Job Configuration
     job_timeout_minutes: int = Field(default=30, alias="JOB_TIMEOUT_MINUTES")
-    celery_broker_url: str = Field(default="redis://redis:6379/0", alias="CELERY_BROKER_URL")
+    # For local-only runs we use in-memory broker and file-based results
+    celery_broker_url: str = Field(default="memory://", alias="CELERY_BROKER_URL")
     celery_result_backend: str = Field(
-        default="redis://redis:6379/0",
+        default="file:///tmp/celeryresults",
         alias="CELERY_RESULT_BACKEND",
     )
 
@@ -85,4 +87,6 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Get cached settings instance."""
     return Settings()
+
+
 

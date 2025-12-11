@@ -69,3 +69,6 @@ export const healthCheck = async (): Promise<any> => {
 
 export default api
 
+
+
+

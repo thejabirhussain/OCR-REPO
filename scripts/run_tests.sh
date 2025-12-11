@@ -10,3 +10,6 @@ pytest -v --cov=app --cov-report=html
 
 echo "Tests completed!"
 
+
+
+

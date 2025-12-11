@@ -1,4 +1,4 @@
-#!/Users/shaikmohammedjabirhussain/Documents/OCR-POC/backend/.venv/bin/python3.10
+#!/Users/shaikmohammedjabirhussain/Documents/OCR-POC/backend/.venv/bin/python3.11
 import sys
 from wheel.cli import main
 if __name__ == '__main__':

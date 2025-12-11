@@ -6,7 +6,6 @@ from enum import Enum
 from typing import Optional
 
 from sqlalchemy import Column, DateTime, Enum as SQLEnum, Integer, JSON, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base
 
@@ -37,7 +36,8 @@ class Job(Base):
 
     __tablename__ = "jobs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Use string UUID for SQLite compatibility
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     status = Column(SQLEnum(JobStatus), default=JobStatus.QUEUED, nullable=False)
     original_filename = Column(String(255), nullable=False)
     file_path = Column(String(512), nullable=False)
@@ -85,4 +85,6 @@ class Job(Base):
     def __repr__(self) -> str:
         """String representation."""
         return f"<Job(id={self.id}, status={self.status}, filename={self.original_filename})>"
+
+
 

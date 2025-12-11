@@ -5,121 +5,12 @@ from pathlib import Path
 from typing import List, Optional
 
 import pdfplumber
-import pymupdf
 from docx import Document as DocxDocument
 
 from app.utils.layout_schema import create_block
-from app.schemas import Page
+from app.schemas import Page, Block
 
 logger = logging.getLogger(__name__)
-
-
-def is_text_based_pdf(pdf_path: Path) -> bool:
-    """Check if PDF has extractable text layer."""
-    try:
-        doc = pymupdf.open(pdf_path)
-        has_text = False
-        for page_num in range(min(3, len(doc))):  # Check first 3 pages
-            page = doc[page_num]
-            text = page.get_text().strip()
-            if len(text) > 50:  # Reasonable amount of text
-                has_text = True
-                break
-        doc.close()
-        return has_text
-    except Exception as e:
-        logger.error(f"Error checking PDF text layer: {e}")
-        return False
-
-
-def extract_text_from_pdf_pymupdf(
-    pdf_path: Path,
-    ocr_callback=None,
-    ocr_engine: str = "paddleocr",
-) -> List[dict]:
-    """
-    Extract text from PDF using PyMuPDF with structure preservation.
-
-    Args:
-        pdf_path: Path to PDF file
-        ocr_callback: Function to call for OCR on image pages: (image_path, page_index) -> blocks
-        ocr_engine: OCR engine to use if OCR is needed
-
-    Returns:
-        List of page dictionaries
-    """
-    pages = []
-    doc = pymupdf.open(pdf_path)
-
-    try:
-        for page_num in range(len(doc)):
-            page = doc[page_num]
-            blocks = []
-
-            # Try to extract text directly
-            text_dict = page.get_text("dict")
-            text_content = page.get_text().strip()
-
-            if len(text_content) > 10:
-                # Text-based page
-                block_id_counter = 0
-                for block in text_dict["blocks"]:
-                    if "lines" in block:  # Text block
-                        block_text_parts = []
-                        for line in block["lines"]:
-                            line_text_parts = []
-                            for span in line["spans"]:
-                                line_text_parts.append(span["text"])
-                            if line_text_parts:
-                                block_text_parts.append(" ".join(line_text_parts))
-
-                        if block_text_parts:
-                            block_text = "\n".join(block_text_parts)
-                            bbox = block["bbox"]  # [x1, y1, x2, y2]
-
-                            # Detect if heading (simple heuristic: larger font or at top)
-                            is_heading = False
-                            heading_level = None
-                            if "lines" in block and block["lines"]:
-                                first_span = block["lines"][0]["spans"][0]
-                                font_size = first_span.get("size", 12)
-                                if font_size > 14 or bbox[1] < 100:  # Top of page or large font
-                                    is_heading = True
-                                    heading_level = 1 if font_size > 16 else 2
-
-                            block_obj = create_block(
-                                block_id=f"{page_num}-{block_id_counter}",
-                                text=block_text,
-                                block_type="heading" if is_heading else "paragraph",
-                                bbox=list(bbox),
-                                is_heading=is_heading,
-                                heading_level=heading_level,
-                            )
-                            blocks.append(block_obj.dict())
-                            block_id_counter += 1
-            else:
-                # Image-based page - use OCR
-                if ocr_callback:
-                    logger.info(f"Page {page_num} appears to be image-based, using OCR")
-                    # Convert page to image
-                    pix = page.get_pixmap(matrix=pymupdf.Matrix(2, 2))  # 2x zoom for better OCR
-                    img_path = pdf_path.parent / f"temp_page_{page_num}.png"
-                    pix.save(str(img_path))
-                    try:
-                        ocr_blocks = ocr_callback(img_path, page_num, ocr_engine)
-                        blocks.extend(ocr_blocks)
-                    finally:
-                        if img_path.exists():
-                            img_path.unlink()
-                else:
-                    logger.warning(f"Page {page_num} has no text and OCR callback not provided")
-
-            pages.append(Page(page_index=page_num, blocks=[create_block(**b) for b in blocks]).dict())
-
-    finally:
-        doc.close()
-
-    return pages
 
 
 def extract_text_from_pdf_pdfplumber(pdf_path: Path) -> List[dict]:
@@ -172,7 +63,7 @@ def extract_text_from_pdf_pdfplumber(pdf_path: Path) -> List[dict]:
                     )
                     blocks.append(block_obj.dict())
 
-            pages.append(Page(page_index=page_num, blocks=[create_block(**b) for b in blocks]).dict())
+            pages.append(Page(page_index=page_num, blocks=[Block(**b) for b in blocks]).dict())
 
     return pages
 
@@ -245,7 +136,7 @@ def extract_text_from_docx(docx_path: Path) -> List[dict]:
                             block_id_counter += 1
 
     # DOCX doesn't have pages, so we return a single page
-    return [Page(page_index=0, blocks=[create_block(**b) for b in blocks]).dict()]
+    return [Page(page_index=0, blocks=[Block(**b) for b in blocks]).dict()]
 
 
 def extract_text_from_file(
@@ -269,12 +160,8 @@ def extract_text_from_file(
     logger.info(f"Extracting text from {file_type} file: {file_path}")
 
     if file_type == "pdf":
-        # Try PyMuPDF first (better structure preservation)
-        try:
-            return extract_text_from_pdf_pymupdf(file_path, ocr_callback, ocr_engine)
-        except Exception as e:
-            logger.warning(f"PyMuPDF extraction failed: {e}, trying pdfplumber")
-            return extract_text_from_pdf_pdfplumber(file_path)
+        # Use pdfplumber for PDF extraction
+        return extract_text_from_pdf_pdfplumber(file_path)
     elif file_type == "docx":
         return extract_text_from_docx(file_path)
     elif file_type in ["image", "jpg", "jpeg", "png", "tiff", "tif"]:

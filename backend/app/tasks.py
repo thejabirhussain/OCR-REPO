@@ -34,6 +34,11 @@ celery_app = Celery(
     backend=settings.celery_result_backend,
 )
 
+# Ensure file backend directory exists if used
+if settings.celery_result_backend.startswith("file://"):
+    backend_path = Path(settings.celery_result_backend.replace("file://", ""))
+    backend_path.mkdir(parents=True, exist_ok=True)
+
 celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],

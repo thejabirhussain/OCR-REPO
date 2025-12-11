@@ -82,3 +82,6 @@ def calculate_document_stats(document: StructuredDocument) -> dict:
         "total_characters": total_characters,
     }
 
+
+
+

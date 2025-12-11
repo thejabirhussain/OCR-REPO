@@ -70,3 +70,6 @@ export interface JobResult {
   english?: StructuredDocument
 }
 
+
+
+

@@ -48,8 +48,9 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
+    # Use the full Alembic config section (with sqlalchemy.url injected above)
     connectable = engine_from_config(
-        config.get_main_option("sqlalchemy.url", {}),
+        config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -65,4 +66,6 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
+
+
 

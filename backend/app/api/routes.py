@@ -58,16 +58,19 @@ async def health_check(db: Session = Depends(get_db)):
         logger.error(f"Database health check failed: {e}")
         db_status = "disconnected"
 
-    # Check Redis
-    redis_status = "connected"
-    try:
-        import redis
+    # Check Redis (skip if using in-memory broker)
+    if settings.celery_broker_url.startswith("memory://"):
+        redis_status = "not_configured"
+    else:
+        redis_status = "connected"
+        try:
+            import redis
 
-        r = redis.from_url(settings.redis_url)
-        r.ping()
-    except Exception as e:
-        logger.error(f"Redis health check failed: {e}")
-        redis_status = "disconnected"
+            r = redis.from_url(settings.redis_url)
+            r.ping()
+        except Exception as e:
+            logger.error(f"Redis health check failed: {e}")
+            redis_status = "disconnected"
 
     # Check models (simplified - just check if they can be loaded)
     models_status = {}
@@ -174,9 +177,12 @@ async def create_job(
     db.commit()
     db.refresh(job)
 
-    # Enqueue processing task
+    # Enqueue processing task. For local in-memory broker, run synchronously.
     try:
-        process_document_task.delay(str(job.id))
+        if settings.celery_broker_url.startswith("memory://"):
+            process_document_task.apply(args=[str(job.id)])
+        else:
+            process_document_task.delay(str(job.id))
         logger.info(f"Job {job.id} queued for processing")
     except Exception as e:
         logger.error(f"Error enqueueing job {job.id}: {e}")
@@ -454,4 +460,6 @@ async def delete_job(job_id: str, db: Session = Depends(get_db)):
     db.commit()
 
     return None
+
+
 

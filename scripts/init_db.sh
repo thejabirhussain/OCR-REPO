@@ -10,3 +10,6 @@ alembic upgrade head
 
 echo "Database initialized successfully!"
 
+
+
+

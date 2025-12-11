@@ -310,3 +310,6 @@ def translate_document(
     logger.info("Translation completed")
     return translated_doc
 
+
+
+

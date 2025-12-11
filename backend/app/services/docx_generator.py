@@ -138,3 +138,6 @@ def generate_txt_from_document(
     logger.info(f"TXT generated successfully: {output_path}")
     return output_path
 
+
+
+

@@ -314,3 +314,6 @@ def extract_text_from_image(
     logger.info(f"Grouped into {len(blocks)} blocks")
     return blocks
 
+
+
+
