@@ -211,6 +211,10 @@ Contributions are welcome! Please read CONTRIBUTING.md for guidelines.
 
 For issues and questions, please open an issue on GitHub.
 
+---
 
+## Ownership and licence
 
+Copyright (c) 2025-2026 **Mohammed Jabir Hussain Shaik** ([@thejabirhussain](https://github.com/thejabirhussain)). **All rights reserved.**
 
+This is proprietary work, published for viewing and evaluation only. Copying, reusing, modifying, redistributing, using it to train AI models, or presenting any part of it as your own is **not permitted** without written permission. See [LICENSE](LICENSE). Permission requests: thejabirhussain@gmail.com
