@@ -201,7 +201,7 @@ OCR-POC/
 
 ## License
 
-MIT License - See LICENSE file for details
+Copyright (c) 2025-2026 Mohammed Jabir Hussain Shaik. All rights reserved. See [LICENSE](LICENSE).
 
 ## Contributing
 
